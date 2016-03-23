@@ -3,7 +3,7 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
 
-class ActivationAbs():
+class LossAbstract():
     __metaclass__ = ABCMeta
 
     def __init__(self):
@@ -19,15 +19,15 @@ class ActivationAbs():
 
 
     @abstractmethod
-    def func(self, x):
+    def func(self, y_true, y_pred):
         """
-        Возвращает значение функции активации
+        Возвращает значение функции потери
         """
         pass
 
     @abstractmethod
-    def derivative(self, x):
+    def derivative(self, y_true, y_pred):
         """
-        Возвращает значение производной функции активации
+        Возвращает значение производной функции потери
         """
         pass
