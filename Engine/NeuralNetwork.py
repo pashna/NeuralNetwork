@@ -5,7 +5,7 @@ from LossFunction.MSE import MSE
 
 class NeuralNetwork():
 
-    def __init__(self, hidden_layers_sizes, is_clasification=True, loss=None, learning_rate=0.1):
+    def __init__(self, hidden_layers_sizes, is_clasification=True, loss=None, learning_rate=0.5):
         """
         :param hidden_layers_sizes: список, состоящий из количества нейронов в каждом слое. Например [4,6,2] - 3 внутренних слоя
         :param is_clasification: Если решается задача классификации
@@ -63,10 +63,32 @@ class NeuralNetwork():
 
     def back_prop(self, x, y):
         self._calculate_output_layer(y)
+        self._calculate_hidden_layers(x, y)
 
 
-    def _calculate_hidden_layers(self):
-        pass
+    def _calculate_hidden_layers(self, x, y):
+
+        """
+        Пересчет весов для внутренних слоев
+        :param x:
+        :param y:
+        """
+        for i in range(1, len(self._layers)):
+            next_layer = self._layers[-i]
+            cur_layer = self._layers[-i-1]
+
+            # Либо выход внутреннего слоя, либо входные x
+            if abs(-i-2) > len(self._layers):
+                in_value = x
+            else:
+                in_value = self._layers[-i-2].out
+
+            delta = (np.dot(next_layer.delta, next_layer._w)).T
+            delta *= cur_layer.output_derivative()
+            cur_layer.delta = delta
+
+            cur_layer._w -= self._learning_rate * np.outer(cur_layer.delta, in_value)
+
 
 
 
@@ -80,8 +102,8 @@ class NeuralNetwork():
         grad = self._calculate_grad(y, output_layer.out)
 
         output_layer.delta = output_layer.output_derivative() * grad
-        #self._learning_rate *
-        output_layer._w += np.outer(output_layer.delta, prev_layer.out)
+
+        output_layer._w -= self._learning_rate * np.outer(output_layer.delta, prev_layer.out)
 
 
     def _generate_etalon_vector(self, y_true_label):
