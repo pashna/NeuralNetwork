@@ -16,6 +16,6 @@ class NetworkTest(unittest.TestCase):
 
 
     def test_calculate_output_layer(self):
-        network = NeuralNetwork(hidden_layers_sizes=[4, 3])
+        network = NeuralNetwork(hidden_layers_sizes=[4, 1])
         X = np.asarray([[2, 1], [3, 0], [5, 1]])
         network.fit(X, np.asarray([1,1,0]))

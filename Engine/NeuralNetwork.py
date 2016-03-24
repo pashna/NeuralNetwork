@@ -65,6 +65,11 @@ class NeuralNetwork():
         self._calculate_output_layer(y)
 
 
+    def _calculate_hidden_layers(self):
+        pass
+
+
+
     def _calculate_output_layer(self, y):
         """
         Функция производит пересчет весов для выходного слоя
