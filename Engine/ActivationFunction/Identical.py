@@ -4,7 +4,7 @@ from ActivationAbs import ActivationAbs
 from math import exp
 from scipy.stats import logistic
 
-class Sigmoid(ActivationAbs):
+class Identical(ActivationAbs):
 
     def func(self, x):
         return x

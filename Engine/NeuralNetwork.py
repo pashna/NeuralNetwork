@@ -3,10 +3,13 @@ from Engine.Layer import Layer
 import numpy as np
 from LossFunction.MSE import MSE
 from LossFunction.BernoulliLikelyhood import BernoulliLikelyhood as Bernoulli
+from sklearn import cross_validation
+from random import randint
+
 
 class NeuralNetwork():
 
-    def __init__(self, hidden_layers_sizes, is_clasification=True, loss=None, learning_rate=0.5):
+    def __init__(self, hidden_layers_sizes, is_clasification=True, loss=None, learning_rate=0.5, max_iter=100, test_size=0.3, max_loss=0.1, random_state=None):
         """
         :param hidden_layers_sizes: список, состоящий из количества нейронов в каждом слое. Например [4,6,2] - 3 внутренних слоя
         :param is_clasification: Если решается задача классификации
@@ -14,16 +17,27 @@ class NeuralNetwork():
         """
         # TODO: ДОБАВИТЬ check_params
         # TODO: ДОБАВИТЬ bias!
+        # TODO: ДОБАВИТЬ функции активации
+        # TODO: ДОБАВИТЬ ИНИЦИАЛИЗВЦИЮ ИЗ РАСПРЕДЕЛЕНИЯ ГАУССА
 
         self._hidden_layers_sizes = hidden_layers_sizes
         self._is_clasification = is_clasification
+        self._max_iter = max_iter
+        self._test_size = test_size
+        self._max_loss = max_loss
+
+        if random_state is None:
+            self._random_state = randint(1, 1000)
+        else:
+            self._random_state = random_state
 
         if loss is None:
             # Если функция потерь не установлена, ставим MSE для классификации и Бернули для регрессии
             if self._is_clasification:
-                self.loss = Bernoulli()
+                self.loss = MSE()
             else:
                 self.loss = MSE()
+
 
         self._learning_rate = learning_rate
 
@@ -56,13 +70,21 @@ class NeuralNetwork():
             pass
 
 
+
     def fit(self, X, y):
         self._init_layers(X.shape[1], y)
 
-        for i in range(len(y)):
-            x = X[i]
-            y_pred = self.forward_prop(x)
-            self.back_prop(x, y[i])
+        X_train, X_test, y_train, y_test = cross_validation.train_test_split(X, y, test_size=self._test_size, random_state=self._random_state)
+
+        iter_n = 0
+        while not self._is_stop_criterion(X_test, y_test, iter_n):
+
+            for i in range(len(y_train)):
+                x = X_train[i]
+                self.forward_prop(x)
+                self.back_prop(x, y_train[i])
+
+            iter_n += 1
 
 
 
@@ -95,11 +117,16 @@ class NeuralNetwork():
             else:
                 in_value = self._layers[-i-2].out
 
+
+            #affs = next_layer._w[:,range(0, len(next_layer._w)-1)]
+
             delta = (np.dot(next_layer.delta, next_layer._w)).T
+            delta = delta[:-1]
+            der = cur_layer.output_derivative()
             delta *= cur_layer.output_derivative()
             cur_layer.delta = delta
 
-            cur_layer._new_weight += self._learning_rate * np.outer(cur_layer.delta, in_value)
+            cur_layer._new_weight += self._learning_rate * np.outer(cur_layer.delta, np.append(in_value, 1))
 
 
     def _update_weight(self):
@@ -122,7 +149,9 @@ class NeuralNetwork():
         o = output_layer.output_derivative()
         output_layer.delta = output_layer.output_derivative() * grad
 
-        output_layer._new_weight += self._learning_rate * np.outer(output_layer.delta, prev_layer.out)
+        #output_layer._new_weight += self._learning_rate * np.outer(output_layer.delta, prev_layer.out)
+        #WEIGHT = self._learning_rate * np.outer(output_layer.delta, prev_layer.out) #append - BIAS
+        output_layer._new_weight += self._learning_rate * np.outer(output_layer.delta, np.append(prev_layer.out, 1))
 
 
     def _generate_etalon_vector(self, y_true_label):
@@ -150,3 +179,28 @@ class NeuralNetwork():
         """
         y_true = self._generate_etalon_vector(y)
         return self.loss.v_derivative(y_true, y_pred)
+
+
+    def _is_stop_criterion(self, X_test, y_test, iter_n):
+        """
+        Функция решает, не пора ли остановиться
+        :param X:
+        :param y:
+        :param iter_n: номер итерации
+        """
+        y_predicted = self.predict(X_test)
+        loss_value = self.loss.v_func(y_test, y_predicted)
+        print loss_value,
+        if (iter_n > self._max_iter) \
+            or (self._max_loss > loss_value):
+            return True
+        return False
+
+
+    def predict_prob(self, X):
+        result = []
+        for x in X:
+            y = self.forward_prop(x)
+            result.append(y/sum(y))
+
+        return result
