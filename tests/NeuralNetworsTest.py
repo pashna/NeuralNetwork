@@ -17,6 +17,11 @@ class NetworkTest(unittest.TestCase):
 
     def test_calculate_output_layer(self):
         network = NeuralNetwork(hidden_layers_sizes=[4])
-        X = np.asarray([[2, 1], [2, 1], [2, 1], [2, 1]])
-        network.fit(X, np.asarray([1,1,1,1]))
-        print network.forward_prop(np.asarray([2,1]))
+        [[2, 1], [400, 500], [2, 1], [2, 1]]
+        X = np.asarray([[2, 1], [400, 500], [2, 1], [2, 1], [2, 1], [2, 1], [2, 1],[2, 1],[2, 1],[2, 1],[2, 1],[2, 1],[2, 1]])
+        y = np.asarray([1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1])
+        for i in range(3, len(X)):
+            network.fit(X[:i], y[:i])
+            print network.forward_prop(np.asarray([2,1]))
+
+

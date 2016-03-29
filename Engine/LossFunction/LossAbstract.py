@@ -14,14 +14,14 @@ class LossAbstract():
         """
         Функция векторизирует функцию активации. Всем оптимизации, поцаны!
         """
-        self.v_func = np.vectorize(self.func)
         self.v_derivative = np.vectorize(self.derivative)
 
 
     @abstractmethod
-    def func(self, y_true, y_pred):
+    def v_func(self, y_true, y_pred):
         """
         Возвращает значение функции потери
+        y_true и y_pred - векторы
         """
         pass
 
@@ -29,5 +29,6 @@ class LossAbstract():
     def derivative(self, y_true, y_pred):
         """
         Возвращает значение производной функции потери
+        y_true и y_pred - числа
         """
         pass

@@ -2,6 +2,7 @@
 from Engine.Layer import Layer
 import numpy as np
 from LossFunction.MSE import MSE
+from LossFunction.BernoulliLikelyhood import BernoulliLikelyhood as Bernoulli
 
 class NeuralNetwork():
 
@@ -11,10 +12,18 @@ class NeuralNetwork():
         :param is_clasification: Если решается задача классификации
         :param loss: если функция потерь отличная от mse. Объект, реализующий абстрактный класс LossAbstract
         """
+        # TODO: ДОБАВИТЬ check_params
+        # TODO: ДОБАВИТЬ bias!
+
         self._hidden_layers_sizes = hidden_layers_sizes
         self._is_clasification = is_clasification
+
         if loss is None:
-            self.loss = MSE()
+            # Если функция потерь не установлена, ставим MSE для классификации и Бернули для регрессии
+            if self._is_clasification:
+                self.loss = Bernoulli()
+            else:
+                self.loss = MSE()
 
         self._learning_rate = learning_rate
 
@@ -49,10 +58,12 @@ class NeuralNetwork():
 
     def fit(self, X, y):
         self._init_layers(X.shape[1], y)
+
         for i in range(len(y)):
             x = X[i]
             y_pred = self.forward_prop(x)
             self.back_prop(x, y[i])
+
 
 
     def forward_prop(self, x):
@@ -64,6 +75,7 @@ class NeuralNetwork():
     def back_prop(self, x, y):
         self._calculate_output_layer(y)
         self._calculate_hidden_layers(x, y)
+        self._update_weight()
 
 
     def _calculate_hidden_layers(self, x, y):
@@ -87,9 +99,15 @@ class NeuralNetwork():
             delta *= cur_layer.output_derivative()
             cur_layer.delta = delta
 
-            cur_layer._w -= self._learning_rate * np.outer(cur_layer.delta, in_value)
+            cur_layer._new_weight += self._learning_rate * np.outer(cur_layer.delta, in_value)
 
 
+    def _update_weight(self):
+        """
+        Функция обновляет веса во всех слоях на только что высчитанные
+        """
+        for layer in self._layers:
+            layer.update_weight()
 
 
     def _calculate_output_layer(self, y):
@@ -101,9 +119,10 @@ class NeuralNetwork():
         prev_layer = self._layers[-2]
         grad = self._calculate_grad(y, output_layer.out)
 
+        o = output_layer.output_derivative()
         output_layer.delta = output_layer.output_derivative() * grad
 
-        output_layer._w -= self._learning_rate * np.outer(output_layer.delta, prev_layer.out)
+        output_layer._new_weight += self._learning_rate * np.outer(output_layer.delta, prev_layer.out)
 
 
     def _generate_etalon_vector(self, y_true_label):
@@ -113,6 +132,15 @@ class NeuralNetwork():
         :param y_true_label: истинное значение
         """
         return self._layers[-1].get_etalon_vector(y_true_label)
+
+
+    def predict(self, X):
+        result = []
+        for x in X:
+            y = self.forward_prop(x)
+            result.append(self._layers[-1].get_value(y))
+
+        return np.asarray(result)
 
 
     def _calculate_grad(self, y, y_pred):

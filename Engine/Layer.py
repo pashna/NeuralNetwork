@@ -26,16 +26,14 @@ class Layer():
         """
         self._n_enter = n_enter
         self._n_neural = n_neural
-        self._w = np.random.random((n_neural, n_enter))/2
+        self._w = np.random.random((n_neural, n_enter))/2.5
+        self._new_weight = self._w
 
 
     def propagate(self, x):
         self.out = np.dot(self._w, x.T)
         self.out = self._activation.v_func(self.out)
         return self.out
-
-    def delta(self, antigrad):
-        self._delta = self._activation.derivative(self.out)
 
 
     def get_etalon_vector(self, y_label):
@@ -44,5 +42,15 @@ class Layer():
         y[correct_index] = 1
         return y
 
+
     def output_derivative(self):
+        aa = self._activation.v_derivative(self.out)
         return self._activation.v_derivative(self.out)
+
+
+    def get_value(self, y):
+        max_index = np.argmax(y)
+        return self._label[max_index]
+
+    def update_weight(self, ):
+        self._w = self._new_weight

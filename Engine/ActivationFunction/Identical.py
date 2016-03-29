@@ -7,10 +7,7 @@ from scipy.stats import logistic
 class Sigmoid(ActivationAbs):
 
     def func(self, x):
-        if abs(x) > 100:
-            x /= abs(x)
-            x *= 100
-        return 1.0/(1.0+exp(-x))
+        return x
 
 
     def derivative(self, out):
@@ -19,4 +16,4 @@ class Sigmoid(ActivationAbs):
         :param x:
         :return:
         """
-        return out*(1-out)
+        return 1
