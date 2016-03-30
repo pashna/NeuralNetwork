@@ -2,10 +2,12 @@
 from Engine.Layer import Layer
 import numpy as np
 from LossFunction.MSE import MSE
+from ActivationFunction.Identical import Identical
 from LossFunction.BernoulliLikelyhood import BernoulliLikelyhood as Bernoulli
 from sklearn import cross_validation
 from random import randint
-
+import sys
+import copy
 
 class NeuralNetwork():
 
@@ -17,13 +19,13 @@ class NeuralNetwork():
         """
         # TODO: ДОБАВИТЬ check_params
         # TODO: ДОБАВИТЬ функции активации
-        # TODO: ДОБАВИТЬ ИНИЦИАЛИЗВЦИЮ ИЗ РАСПРЕДЕЛЕНИЯ ГАУССА
 
         self._hidden_layers_sizes = hidden_layers_sizes
         self._is_clasification = is_clasification
         self._max_iter = max_iter
         self._test_size = test_size
         self._max_loss = max_loss
+        self._learning_rate = learning_rate
 
         if random_state is None:
             self._random_state = randint(1, 1000)
@@ -33,12 +35,13 @@ class NeuralNetwork():
         if loss is None:
             # Если функция потерь не установлена, ставим MSE для классификации и Бернули для регрессии
             if self._is_clasification:
-                self.loss = Bernoulli()
+                self.loss = MSE()
             else:
                 self.loss = MSE()
 
-
-        self._learning_rate = learning_rate
+        # Поля для обновления learning_rate
+        self._min_loss = 9999999.9
+        self._incorrect_iter_n = 0
 
 
     def _init_layers(self, input_size, y):
@@ -65,7 +68,8 @@ class NeuralNetwork():
             self._layers.append(layer)
         else:
             # регрессия, пока пропустим
-            pass
+            layer = Layer(n_enter=prev_layer_size, n_neural=1, activation=Identical())
+            self._layers.append(layer)
 
 
 
@@ -115,12 +119,8 @@ class NeuralNetwork():
             else:
                 in_value = self._layers[-i-2].out
 
-
-            #affs = next_layer._w[:,range(0, len(next_layer._w)-1)]
-
             delta = (np.dot(next_layer.delta, next_layer._w)).T
             delta = delta[:-1]
-            der = cur_layer.output_derivative()
             delta *= cur_layer.output_derivative()
             cur_layer.delta = delta
 
@@ -144,12 +144,9 @@ class NeuralNetwork():
         prev_layer = self._layers[-2]
         grad = self._calculate_grad(y, output_layer.out)
 
-        o = output_layer.output_derivative()
+        #o = output_layer.output_derivative()
         output_layer.delta = output_layer.output_derivative() * grad
-
-        #output_layer._new_weight += self._learning_rate * np.outer(output_layer.delta, prev_layer.out)
-        #WEIGHT = self._learning_rate * np.outer(output_layer.delta, prev_layer.out) #append - BIAS
-        output_layer._new_weight += self._learning_rate * np.outer(output_layer.delta, np.append(prev_layer.out, 1))
+        output_layer._new_weight += self._learning_rate * np.outer(output_layer.delta, np.append(prev_layer.out, 1)) #append - BIAS
 
 
     def _generate_etalon_vector(self, y_true_label):
@@ -187,17 +184,19 @@ class NeuralNetwork():
         :param iter_n: номер итерации
         """
         if self._is_clasification:
-            X_test = X_test[:1]
-            y_test = y_test[:1]
             y_predicted = self.predict_prob(X_test)
             y_test_prob = self._generate_etalon_matrix(y_test)
             loss_value = self.loss.v_func_prob(y_test_prob, y_predicted)
-        """
+
         else:
             y_predicted = self.predict(X_test)
-        """
+            loss_value = self.loss.v_func(y_test, y_predicted)
 
-        print loss_value
+        if iter_n%20 == 0:
+            print "iter = ", iter_n, "  loss=",loss_value, " min_loss=", self._min_loss
+
+        self._update_learning_rate(loss_value, X_test, y_test)
+
         if (iter_n > self._max_iter) \
             or (self._max_loss > loss_value):
             return True
@@ -228,6 +227,39 @@ class NeuralNetwork():
         result = []
         for x in X:
             y = self.forward_prop(x)
-            result.append(y/sum(y))
+            result.append(y)#/sum(y))
 
         return result
+
+
+    def _update_learning_rate(self, loss_value, X_test, y_test):
+
+        # Если значение функции потери уменьшилось - фиксируем текущее состояние
+        if self._min_loss > loss_value:
+            self._min_loss = loss_value
+            self._min_learning_rate = self._learning_rate
+            self._best_layers = copy.deepcopy(self._layers)#self._layers.copy()
+            self._incorrect_iter_n = 0
+
+        # Считаем количество итераций, которые выходят за 10% от оптимального
+        if loss_value > self._min_loss*1.1:
+            self._incorrect_iter_n += 1
+        else:
+            self._incorrect_iter_n = 0
+
+        # Если таких итераций больше 10, откатываемся на лучшее состояние и уменьшаем learning_rate
+        if self._incorrect_iter_n > 10:
+            print "Roll Back! ", self._learning_rate
+            self._layers = copy.deepcopy(self._best_layers)
+            self._learning_rate /= 2.
+            self._incorrect_iter_n = 0
+
+
+            y_predicted = self.predict_prob(X_test)
+            y_test_prob = self._generate_etalon_matrix(y_test)
+            loss_value = self.loss.v_func_prob(y_test_prob, y_predicted)
+            print "new loss = ", loss_value
+
+
+
+

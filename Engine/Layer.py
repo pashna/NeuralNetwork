@@ -28,7 +28,7 @@ class Layer():
         """
         self._n_enter = n_enter
         self._n_neural = n_neural
-        self._w = np.random.random((n_neural, n_enter))/2.5
+        self._w = 0.1 * np.random.randn(n_neural, n_enter) + 0 #np.random.random((n_neural, n_enter))/10.
 
         #self._w /= self._w
 
