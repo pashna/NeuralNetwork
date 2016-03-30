@@ -18,7 +18,8 @@ class Layer():
 
         if activation is None:
             self._activation = Sigmoid()#Identical()
-
+        else:
+            self._activation = activation
 
     def _init_weigth(self, n_enter, n_neural):
         """

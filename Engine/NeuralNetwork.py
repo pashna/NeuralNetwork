@@ -11,26 +11,32 @@ import copy
 
 class NeuralNetwork():
 
-    def __init__(self, hidden_layers_sizes, is_clasification=True, loss=None, learning_rate=0.5, max_iter=100, test_size=0.01, max_loss=0.1, random_state=None):
+    def __init__(self, hidden_layers_sizes, activation_func=None, is_clasification=True, loss=None, learning_rate=0.5, max_iter=100, max_loss=0.1):
         """
         :param hidden_layers_sizes: список, состоящий из количества нейронов в каждом слое. Например [4,6,2] - 3 внутренних слоя
+        :param activation_func: список, содержащий объекты-функции активации. Реализуют абстрактный класс ActivationAbs
         :param is_clasification: Если решается задача классификации
         :param loss: если функция потерь отличная от mse. Объект, реализующий абстрактный класс LossAbstract
+        :param learning_rate: float, изначальный learning_rate
+        :param max_iter: int, максимальное количество итераций (вех)
+        :param max_loss: минимальное значение функции потери, при котором продолжаем обучаться
         """
-        # TODO: ДОБАВИТЬ check_params
-        # TODO: ДОБАВИТЬ функции активации
-
         self._hidden_layers_sizes = hidden_layers_sizes
+
+        self._activation_func = activation_func
+        if activation_func is not None and is_clasification:
+            if len(activation_func) != len(hidden_layers_sizes)+1 :
+                print "Count of activation function should be correspond with count of layers. \nRule for classification: len(activation) == len(hidden_layers)+1"
+                return
+        if activation_func is not None and not is_clasification:
+            if len(activation_func) != len(hidden_layers_sizes):
+                print "Count of activation function should be correspond with count of layers. \nRule for regression: len(activation) == len(hidden_layers"
+                return
+
         self._is_clasification = is_clasification
         self._max_iter = max_iter
-        self._test_size = test_size
         self._max_loss = max_loss
         self._learning_rate = learning_rate
-
-        if random_state is None:
-            self._random_state = randint(1, 1000)
-        else:
-            self._random_state = random_state
 
         if loss is None:
             # Если функция потерь не установлена, ставим MSE для классификации и Бернули для регрессии
@@ -52,8 +58,17 @@ class NeuralNetwork():
         """
         prev_exit = input_size
         self._layers = []
-        for size in self._hidden_layers_sizes:
-            l = Layer(n_enter=prev_exit, n_neural=size)
+
+        for i in range(len(self._hidden_layers_sizes)):
+            size = self._hidden_layers_sizes[i]
+
+            if self._activation_func is not None:
+                activation = self._activation_func[i]
+            else:
+                activation = None
+
+            l = Layer(n_enter=prev_exit, n_neural=size, activation=activation)
+
             self._layers.append(l)
             prev_exit = size
 
@@ -64,7 +79,11 @@ class NeuralNetwork():
 
         if self._is_clasification:
             classes = list(np.unique(y))
-            layer = Layer(n_enter=prev_layer_size, n_neural=len(classes), label=classes)
+            if self._activation_func is not None:
+                activation = self._activation_func[-1]
+            else:
+                activation = None
+            layer = Layer(n_enter=prev_layer_size, n_neural=len(classes), label=classes, activation=activation)
             self._layers.append(layer)
         else:
             # регрессия, пока пропустим
@@ -72,12 +91,45 @@ class NeuralNetwork():
             self._layers.append(layer)
 
 
+    def _cross_validate(self, X, y, test_size=0.25, random_state=None):
+        """
+        Функция выполняет разбиение X и y на тестовую и тренировочную
+        :param X:
+        :param y:
+        :param test_size:
+        :param random_state:
+        :return:
+        """
+        if random_state is None:
+            random_state = randint(1, 1000)
+        else:
+            random_state = random_state
 
-    def fit(self, X, y):
+        X_train, X_test, y_train, y_test = cross_validation.train_test_split(X, y, test_size=test_size, random_state=random_state)
+        return X_train, X_test, y_train, y_test
+
+
+
+    def fit(self, X, y, cv=None, test_size=0.25, random_state=None):
+        """
+        :param X: тренировочный Х
+        :param y: тренировочный y
+        :param cv: touple(validate_X, validate_y). Чтобы задействовать внутреннюю кросвалидацию оставить параметр None
+        :param test_size: размер валидационной выборки при разделении X и y
+        :param random_state: параметр для генератора случайных чисел
+        """
+
+        if cv is not None:
+            # Если передано явно разбиение на валидационную и тренировочную выборку
+            X_train = X
+            y_train = y
+            X_test = cv[0]
+            y_test = cv[1]
+        else:
+            # Если разбиение явно не задано - кросвалидируемся
+            X_train, X_test, y_train, y_test = self._cross_validate(X, y, test_size, random_state)
+
         self._init_layers(X.shape[1], y)
-
-        X_train, X_test, y_train, y_test = cross_validation.train_test_split(X, y, test_size=self._test_size, random_state=self._random_state)
-
         iter_n = 0
         while not self._is_stop_criterion(X_test, y_test, iter_n):
 
@@ -87,7 +139,6 @@ class NeuralNetwork():
                 self.back_prop(x, y_train[i])
 
             iter_n += 1
-
 
 
     def forward_prop(self, x):
@@ -103,7 +154,6 @@ class NeuralNetwork():
 
 
     def _calculate_hidden_layers(self, x, y):
-
         """
         Пересчет весов для внутренних слоев
         :param x:
@@ -184,7 +234,7 @@ class NeuralNetwork():
         :param iter_n: номер итерации
         """
         if self._is_clasification:
-            y_predicted = self.predict_prob(X_test)
+            y_predicted = self.predict_output(X_test)
             y_test_prob = self._generate_etalon_matrix(y_test)
             loss_value = self.loss.v_func_prob(y_test_prob, y_predicted)
 
@@ -218,9 +268,9 @@ class NeuralNetwork():
         return np.asarray(result)
 
 
-    def predict_prob(self, X):
+    def predict_output(self, X):
         """
-        Предсказывает вероятность класса. (Процентное соотношение значений выходных сигналов за классы)
+        Выдает output нейронной сетки
         :param X:
         :return:
         """
@@ -249,13 +299,13 @@ class NeuralNetwork():
 
         # Если таких итераций больше 10, откатываемся на лучшее состояние и уменьшаем learning_rate
         if self._incorrect_iter_n > 10:
-            print "Roll Back! ", self._learning_rate
             self._layers = copy.deepcopy(self._best_layers)
             self._learning_rate /= 2.
             self._incorrect_iter_n = 0
+            print "Roll Back! new learning_rate = ", self._learning_rate
 
 
-            y_predicted = self.predict_prob(X_test)
+            y_predicted = self.predict_output(X_test)
             y_test_prob = self._generate_etalon_matrix(y_test)
             loss_value = self.loss.v_func_prob(y_test_prob, y_predicted)
             print "new loss = ", loss_value
