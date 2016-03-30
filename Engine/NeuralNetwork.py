@@ -9,14 +9,13 @@ from random import randint
 
 class NeuralNetwork():
 
-    def __init__(self, hidden_layers_sizes, is_clasification=True, loss=None, learning_rate=0.5, max_iter=100, test_size=0.3, max_loss=0.1, random_state=None):
+    def __init__(self, hidden_layers_sizes, is_clasification=True, loss=None, learning_rate=0.5, max_iter=100, test_size=0.01, max_loss=0.1, random_state=None):
         """
         :param hidden_layers_sizes: список, состоящий из количества нейронов в каждом слое. Например [4,6,2] - 3 внутренних слоя
         :param is_clasification: Если решается задача классификации
         :param loss: если функция потерь отличная от mse. Объект, реализующий абстрактный класс LossAbstract
         """
         # TODO: ДОБАВИТЬ check_params
-        # TODO: ДОБАВИТЬ bias!
         # TODO: ДОБАВИТЬ функции активации
         # TODO: ДОБАВИТЬ ИНИЦИАЛИЗВЦИЮ ИЗ РАСПРЕДЕЛЕНИЯ ГАУССА
 
@@ -34,7 +33,7 @@ class NeuralNetwork():
         if loss is None:
             # Если функция потерь не установлена, ставим MSE для классификации и Бернули для регрессии
             if self._is_clasification:
-                self.loss = MSE()
+                self.loss = Bernoulli()
             else:
                 self.loss = MSE()
 
@@ -63,7 +62,6 @@ class NeuralNetwork():
         if self._is_clasification:
             classes = list(np.unique(y))
             layer = Layer(n_enter=prev_layer_size, n_neural=len(classes), label=classes)
-            # TODO: для двух классов один выход сделать может?
             self._layers.append(layer)
         else:
             # регрессия, пока пропустим
@@ -188,16 +186,45 @@ class NeuralNetwork():
         :param y:
         :param iter_n: номер итерации
         """
-        y_predicted = self.predict(X_test)
-        loss_value = self.loss.v_func(y_test, y_predicted)
-        print loss_value,
+        if self._is_clasification:
+            X_test = X_test[:1]
+            y_test = y_test[:1]
+            y_predicted = self.predict_prob(X_test)
+            y_test_prob = self._generate_etalon_matrix(y_test)
+            loss_value = self.loss.v_func_prob(y_test_prob, y_predicted)
+        """
+        else:
+            y_predicted = self.predict(X_test)
+        """
+
+        print loss_value
         if (iter_n > self._max_iter) \
             or (self._max_loss > loss_value):
             return True
         return False
 
 
+    def _generate_etalon_matrix(self, y_test):
+        """
+        Функция генерирует эталонную матрицу (для задачи классификации)
+        Т.е. матрицу, с числом строк, равной количеству объектов, с числом столбцов, равным количеству классов
+        Единичка стоит в столбце с верным классом - в остльных стоят нули
+        :param y_test:
+        :return:
+        """
+        result = []
+        for y in y_test:
+            result.append(self._generate_etalon_vector(y))
+
+        return np.asarray(result)
+
+
     def predict_prob(self, X):
+        """
+        Предсказывает вероятность класса. (Процентное соотношение значений выходных сигналов за классы)
+        :param X:
+        :return:
+        """
         result = []
         for x in X:
             y = self.forward_prop(x)

@@ -26,6 +26,14 @@ class LossAbstract():
         pass
 
     @abstractmethod
+    def v_func_prob(self, Y_true, Y_pred):
+        """
+        Возвращает значение функции потери,
+        y_true и y_pred - матрицы, (Количество_Объектов)х(Количество_Классов)
+        """
+        pass
+
+    @abstractmethod
     def derivative(self, y_true, y_pred):
         """
         Возвращает значение производной функции потери
