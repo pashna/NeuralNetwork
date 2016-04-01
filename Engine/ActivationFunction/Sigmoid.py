@@ -4,6 +4,8 @@ from ActivationAbs import ActivationAbs
 from math import exp
 from scipy.stats import logistic
 
+from scipy.special import expit
+
 class Sigmoid(ActivationAbs):
 
     def func(self, x):

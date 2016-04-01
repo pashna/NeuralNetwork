@@ -1,5 +1,7 @@
 from LossAbstract import LossAbstract
 import numpy as np
+from sklearn.metrics import mean_squared_error
+
 
 class MSE(LossAbstract):
 
@@ -8,7 +10,8 @@ class MSE(LossAbstract):
 
 
     def v_func(self, y_true, y_pred):
-        return sum(0.5*(y_true-y_pred)*(y_true-y_pred))
+        return mean_squared_error(y_true, y_pred)
+        #return np.sum((y_true-y_pred)*(y_true-y_pred))/len(y_pred)
 
 
     def v_func_prob(self, Y_true, Y_pred):

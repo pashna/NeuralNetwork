@@ -6,6 +6,8 @@ import numpy as np
 class BernoulliLikelyhood(LossAbstract):
 
     def v_func_prob(self, Y_true, Y_pred):
+        sum_vector = np.sum(Y_pred, axis=1)
+        Y_pred /= sum_vector[:,None]
         return -np.sum(Y_true * np.log(Y_pred))/len(Y_true)
 
 

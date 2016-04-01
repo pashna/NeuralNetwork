@@ -37,6 +37,7 @@ class NeuralNetwork():
         self._max_iter = max_iter
         self._max_loss = max_loss
         self._learning_rate = learning_rate
+        self.loss = loss
 
         if loss is None:
             # Если функция потерь не установлена, ставим MSE для классификации и Бернули для регрессии
@@ -83,6 +84,7 @@ class NeuralNetwork():
                 activation = self._activation_func[-1]
             else:
                 activation = None
+
             layer = Layer(n_enter=prev_layer_size, n_neural=len(classes), label=classes, activation=activation)
             self._layers.append(layer)
         else:
@@ -131,12 +133,14 @@ class NeuralNetwork():
 
         self._init_layers(X.shape[1], y)
         iter_n = 0
+
         while not self._is_stop_criterion(X_test, y_test, iter_n):
 
             for i in range(len(y_train)):
                 x = X_train[i]
-                self.forward_prop(x)
+                y = self.forward_prop(x)
                 self.back_prop(x, y_train[i])
+                self._update_weight()
 
             iter_n += 1
 
@@ -150,7 +154,6 @@ class NeuralNetwork():
     def back_prop(self, x, y):
         self._calculate_output_layer(y)
         self._calculate_hidden_layers(x, y)
-        self._update_weight()
 
 
     def _calculate_hidden_layers(self, x, y):
@@ -171,6 +174,7 @@ class NeuralNetwork():
 
             delta = (np.dot(next_layer.delta, next_layer._w)).T
             delta = delta[:-1]
+            dev = cur_layer.output_derivative()
             delta *= cur_layer.output_derivative()
             cur_layer.delta = delta
 
@@ -185,16 +189,16 @@ class NeuralNetwork():
             layer.update_weight()
 
 
-    def _calculate_output_layer(self, y):
+    def _calculate_output_layer(self, y_true):
         """
         Функция производит пересчет весов для выходного слоя
-        :param y: реальное значение y
+        :param y_true: float, реальное значение y
         """
         output_layer = self._layers[-1]
         prev_layer = self._layers[-2]
-        grad = self._calculate_grad(y, output_layer.out)
+        grad = self._calculate_grad(y_true, output_layer.out)
 
-        #o = output_layer.output_derivative()
+        o = output_layer.output_derivative()
         output_layer.delta = output_layer.output_derivative() * grad
         output_layer._new_weight += self._learning_rate * np.outer(output_layer.delta, np.append(prev_layer.out, 1)) #append - BIAS
 
@@ -212,7 +216,11 @@ class NeuralNetwork():
         result = []
         for x in X:
             y = self.forward_prop(x)
-            result.append(self._layers[-1].get_value(y))
+            if self._is_clasification:
+                #list() ???
+                result.append(self._layers[-1].get_class(y))
+            else:
+                result.append(y)
 
         return np.asarray(result)
 
@@ -222,7 +230,10 @@ class NeuralNetwork():
         :param y: истинной значение y. int
         :param y_pred: вектор предсказанных значений
         """
-        y_true = self._generate_etalon_vector(y)
+        if self._is_clasification:
+            y_true = self._generate_etalon_vector(y)
+        else:
+            y_true = np.asarray([y])
         return self.loss.v_derivative(y_true, y_pred)
 
 
@@ -240,10 +251,11 @@ class NeuralNetwork():
 
         else:
             y_predicted = self.predict(X_test)
+            y_predicted = y_predicted.ravel()
             loss_value = self.loss.v_func(y_test, y_predicted)
 
-        if iter_n%20 == 0:
-            print "iter = ", iter_n, "  loss=",loss_value, " min_loss=", self._min_loss
+        #if iter_n%20 == 1:
+        print "iter = ", iter_n, "  loss=",loss_value, " min_loss=", self._min_loss
 
         self._update_learning_rate(loss_value, X_test, y_test)
 
@@ -283,7 +295,12 @@ class NeuralNetwork():
 
 
     def _update_learning_rate(self, loss_value, X_test, y_test):
-
+        """
+        Функция выполняет уменьшение learning rate в соответвии с правилом от Павла на лекции
+        :param loss_value: текущее значения функции потерть
+        :param X_test:
+        :param y_test:
+        """
         # Если значение функции потери уменьшилось - фиксируем текущее состояние
         if self._min_loss > loss_value:
             self._min_loss = loss_value
@@ -302,14 +319,16 @@ class NeuralNetwork():
             self._layers = copy.deepcopy(self._best_layers)
             self._learning_rate /= 2.
             self._incorrect_iter_n = 0
-            print "Roll Back! new learning_rate = ", self._learning_rate
+            print "Roll Back! New learning_rate = ", self._learning_rate
 
+            """
+            if self._is_clasification:
+                y_predicted = self.predict_output(X_test)
+                y_test_prob = self._generate_etalon_matrix(y_test)
+                loss_value = self.loss.v_func_prob(y_test_prob, y_predicted)
+            else:
+                y_predicted = self.predict_output(X_test)
+                loss_value = self.loss.v_func(y_test, y_predicted)
 
-            y_predicted = self.predict_output(X_test)
-            y_test_prob = self._generate_etalon_matrix(y_test)
-            loss_value = self.loss.v_func_prob(y_test_prob, y_predicted)
-            print "new loss = ", loss_value
-
-
-
-
+            #print "new loss = ", loss_value
+            """
