@@ -16,3 +16,4 @@ class MSE(LossAbstract):
 
     def v_func_prob(self, Y_true, Y_pred):
         return np.sum((Y_true - Y_pred)**2)/len(Y_true)
+

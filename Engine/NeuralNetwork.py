@@ -8,10 +8,13 @@ from sklearn import cross_validation
 from random import randint
 import sys
 import copy
+from Engine.Regularization.L1 import L1
+from Engine.Regularization.L2 import L2
+
 
 class NeuralNetwork():
 
-    def __init__(self, hidden_layers_sizes, activation_func=None, is_clasification=True, loss=None, learning_rate=0.5, max_iter=100, max_loss=0.1, classes=None):
+    def __init__(self, hidden_layers_sizes, activation_func=None, is_clasification=True, loss=None, learning_rate=0.5, max_iter=100, max_loss=0.1, regularization=None, r_coef=0.01, classes=None):
         """
         :param hidden_layers_sizes: список, состоящий из количества нейронов в каждом слое. Например [4,6,2] - 3 внутренних слоя
         :param activation_func: список, содержащий объекты-функции активации. Реализуют абстрактный класс ActivationAbs
@@ -20,6 +23,8 @@ class NeuralNetwork():
         :param learning_rate: float, изначальный learning_rate
         :param max_iter: int, максимальное количество итераций (вех)
         :param max_loss: минимальное значение функции потери, при котором продолжаем обучаться
+        :param regularization: регулярзация. 'l1', 'l2' или None
+        :param r_coef: коэффициент при регуляризации
         """
         self._hidden_layers_sizes = hidden_layers_sizes
         self.classes = classes
@@ -39,13 +44,22 @@ class NeuralNetwork():
         self._max_loss = max_loss
         self._learning_rate = learning_rate
         self.loss = loss
+        self.r_coef = r_coef
+
+        if regularization is not None:
+            if regularization == 'l1':
+                self.regular = L1()
+            else:
+                self.regular = L2()
+        else:
+            regular = None
 
         if loss is None:
             # Если функция потерь не установлена, ставим MSE для классификации и Бернули для регрессии
             if self._is_clasification:
-                self.loss = MSE()
+                self.loss = MSE()#regular, r_coef)
             else:
-                self.loss = MSE()
+                self.loss = MSE()#regular, r_coef)
 
         # Поля для обновления learning_rate
         self._min_loss = 9999999.9
@@ -197,12 +211,15 @@ class NeuralNetwork():
         """
         output_layer = self._layers[-1]
         prev_layer = self._layers[-2]
-        grad = self._calculate_grad(y_true, output_layer.out)
+        grad = self._calculate_grad(y_true, output_layer.out)#, output_layer._w)
 
         o = output_layer.output_derivative()
         output_layer.delta = output_layer.output_derivative() * grad
-        output_layer._new_weight += self._learning_rate * np.outer(output_layer.delta, np.append(prev_layer.out, 1)) #append - BIAS
-
+        #np.outer(output_layer.delta, np.append(prev_layer.out, 1))
+        if self.regular is None:
+            output_layer._new_weight += self._learning_rate * (np.outer(output_layer.delta, np.append(prev_layer.out, 1)))
+        else:
+            output_layer._new_weight += self._learning_rate * (np.outer(output_layer.delta, np.append(prev_layer.out, 1)) + self.r_coef * self.regular.derivative_matrix(output_layer._w))
 
     def _generate_etalon_vector(self, y_true_label):
         """
@@ -248,7 +265,7 @@ class NeuralNetwork():
         if self._is_clasification:
             y_predicted = self.predict_output(X_test)
             y_test_prob = self._generate_etalon_matrix(y_test)
-            loss_value = self.loss.v_func_prob(y_test_prob, y_predicted)
+            loss_value = self.loss.v_func_prob(y_test_prob, y_predicted)# + np.sum(np.abs(self._layers[-1]._w))
 
         else:
             y_predicted = self.predict(X_test)
