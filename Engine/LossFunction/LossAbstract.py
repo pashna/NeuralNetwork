@@ -6,7 +6,11 @@ import numpy as np
 class LossAbstract():
     __metaclass__ = ABCMeta
 
-    def __init__(self):
+    def __init__(self):#, regularizator=None, r_coef=0.01):
+        """
+        self.regularizator = regularizator
+        self.r_coef = r_coef
+        """
         self.vectorize_function()
 
 
@@ -16,6 +20,13 @@ class LossAbstract():
         """
         self.v_derivative = np.vectorize(self.derivative)
 
+    """
+    def v_derivative(self, y_true, y_pred, W):
+        if self.regularizator is not None:
+            return self.v_derivative_loss(y_true, y_pred) + self.r_coef * self.regularizator.derivative_matrix(W)
+        else:
+            return self.v_derivative_loss(y_true, y_pred)
+    """
 
     @abstractmethod
     def v_func(self, y_true, y_pred):

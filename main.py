@@ -18,10 +18,11 @@ def iris_network():
     print np.unique(y)
 
     network = NeuralNetwork(hidden_layers_sizes=[50, 50],
-                            activation_func=[Sigmoid(), Sigmoid(), Sigmoid()],
+                            #activation_func=[Sigmoid(), Sigmoid(), Sigmoid()],
                             learning_rate=1.,
-                            max_iter=1000,
-                            max_loss=0.1)
+                            max_iter=300,
+                            max_loss=0.1,
+                            regularization='l1')
     network.fit(X, y)
     y_pred = network.predict(X)
     print "abs = ", mean_absolute_error(y, y_pred)
@@ -85,8 +86,8 @@ def boston_network():
     print zip(y, y_pred)
 
 if __name__ == "__main__":
-    #iris_network()
-    boston_network()
+    iris_network()
+    #boston_network()
 
 
 
