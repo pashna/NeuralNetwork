@@ -11,7 +11,7 @@ import copy
 
 class NeuralNetwork():
 
-    def __init__(self, hidden_layers_sizes, activation_func=None, is_clasification=True, loss=None, learning_rate=0.5, max_iter=100, max_loss=0.1):
+    def __init__(self, hidden_layers_sizes, activation_func=None, is_clasification=True, loss=None, learning_rate=0.5, max_iter=100, max_loss=0.1, classes=None):
         """
         :param hidden_layers_sizes: список, состоящий из количества нейронов в каждом слое. Например [4,6,2] - 3 внутренних слоя
         :param activation_func: список, содержащий объекты-функции активации. Реализуют абстрактный класс ActivationAbs
@@ -22,6 +22,7 @@ class NeuralNetwork():
         :param max_loss: минимальное значение функции потери, при котором продолжаем обучаться
         """
         self._hidden_layers_sizes = hidden_layers_sizes
+        self.classes = classes
 
         self._activation_func = activation_func
         if activation_func is not None and is_clasification:
@@ -79,13 +80,13 @@ class NeuralNetwork():
     def _init_output_layer(self, y, prev_layer_size):
 
         if self._is_clasification:
-            classes = list(np.unique(y))
+            #classes = list(np.unique(y))
             if self._activation_func is not None:
                 activation = self._activation_func[-1]
             else:
                 activation = None
 
-            layer = Layer(n_enter=prev_layer_size, n_neural=len(classes), label=classes, activation=activation)
+            layer = Layer(n_enter=prev_layer_size, n_neural=len(self.classes), label=self.classes, activation=activation)
             self._layers.append(layer)
         else:
             # регрессия, пока пропустим
@@ -254,8 +255,8 @@ class NeuralNetwork():
             y_predicted = y_predicted.ravel()
             loss_value = self.loss.v_func(y_test, y_predicted)
 
-        #if iter_n%20 == 1:
-        print "iter = ", iter_n, "  loss=",loss_value, " min_loss=", self._min_loss
+        if iter_n%20 == 1:
+            print "iter = ", iter_n, "  loss=",loss_value, " min_loss=", self._min_loss
 
         self._update_learning_rate(loss_value, X_test, y_test)
 
